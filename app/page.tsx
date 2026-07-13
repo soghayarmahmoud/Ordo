@@ -12,7 +12,6 @@ import { InboxView } from '@/src/components/InboxView';
 import { SettingsView } from '@/src/components/SettingsView';
 import { ProfileView } from '@/src/components/ProfileView';
 import { SupportView } from '@/src/components/SupportView';
-import { RoadmapView } from '@/src/components/RoadmapView';
 import {
   INITIAL_INBOX_ITEMS,
   INITIAL_TIME_BLOCKS,
@@ -87,8 +86,6 @@ export default function OrdoWorkspacePage() {
         return <ProfileView />;
       case 'support':
         return <SupportView />;
-      case 'roadmap':
-        return <RoadmapView />;
       default:
         return (
           <DashboardView

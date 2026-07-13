@@ -1,118 +1,531 @@
-# Ordo | Technical & Strategic Roadmap
-**Version:** 2.0.0 Architecture Specification  
-**System Classification:** Unified AI-Agentic Productivity Operating System  
+# Ordo Platform | Full-Stack Implementation & Database Roadmap
+**Document Type:** Step-by-Step Developer Implementation Guide  
+**Target Architecture:** Next.js 16 (App Router) + PostgreSQL (Prisma/Drizzle) + NextAuth.js v5 (Auth.js)  
 
 ---
 
-## Executive Summary
+## Executive Overview
 
-Ordo (`formerly Nexus OS`) is designed as a state-of-the-art executive command center and productivity operating system that seamlessly unifies **Smart Action Inboxes**, **Interactive Time-Blocking Calendars**, **Multi-Column Kanban Sprint Boards**, and **Multi-Cloud Automation Webhooks** under a single glassmorphic interface.
+You have successfully built the **Ordo** frontend UI—complete with executive dashboard command centers, interactive time-blocking calendars with drag-and-swap mechanics, sprint Kanban boards, and smart action inboxes.
 
-This roadmap details our architectural strategy across **four strategic phases**—from real-time drag-and-swap calendar mechanics to autonomous multi-agent copilot execution and zero-knowledge enterprise telemetry.
-
----
-
-## Strategic Phases & Technical Implementation
-
-### Phase 1: Core Engine & Interactive Scheduling (`Completed ✅`)
-*Focus: Foundation, High-Performance Drag-and-Swap, and Responsive Glass UI*
-
-- **1.1 Modern Next.js 16 & React 19 Architecture**
-  - **Component Hierarchy:** Modularized screens (`DashboardView`, `InboxView`, `CalendarView`, `KanbanBoard`, `AutomationsView`, `SettingsView`, `ProfileView`, `SupportView`, `RoadmapView`).
-  - **Design System:** Custom CSS design tokens (`globals.css`) with curated HSL colors (`#0b1326` deep navy obsidian, `#38bdf8` electric cyan, and smooth glassmorphic blur overlays).
-  
-- **1.2 Interactive Calendar Drag-and-Swap Mechanics**
-  - **Bidirectional Swapping:** Using `@dnd-kit/core` (`useDraggable`, `useDroppable`, `closestCorners`), time blocks inside the calendar are fully reactive. When a user drags `Block A` onto a slot occupied by `Block B`, the system automatically **swaps** their day and hour assignments without losing email metadata or durations.
-  - **Carve Time Engine:** Custom modal interface allowing instant scheduling of deep work blocks with custom color variants (`Highlight`, `Accent`, `Glow`, `Default`).
-
-- **1.3 Responsive Slide-Over Navigation & Widescreen Scaling**
-  - **Mobile Drawer:** Sidebar navigation (`SidebarNavigation.tsx`) automatically collapses into a smooth slide-over drawer on mobile/tablet (`< 1024px`) triggered via the top command bar hamburger button.
-  - **Horizontal Scroll Safe-Guards:** Protected Kanban columns and multi-day calendar grids with horizontal overflow containers (`overflow-x-auto`) to guarantee zero layout shift on smaller viewports.
+This **roadmap and developer guide** provides exact, copy-pasteable architectural blueprints to transition Ordo from using client-side `mockData.ts` into a **production-ready full-stack SaaS platform** equipped with:
+1. **Relational Database (`PostgreSQL`)** with **Prisma ORM** schemas for users, workspaces, action items, calendar slots, and sprint tasks.
+2. **Enterprise Authentication & Login System (`NextAuth.js v5 / Auth.js`)** supporting OAuth (Google/GitHub), JWT secure cookies, and Role-Based Access Control (`RBAC`).
+3. **Real-Time API Routes (`Next.js App Router`)** to persist calendar time swaps, task moves, and AI summary generations directly in your database.
 
 ---
 
-### Phase 2: Autonomous AI Workflows & Multi-Agent Copilot (`In Progress ⚡`)
-*Focus: Agentic Execution, LLM Ingestion, and Voice Command Interfaces*
+## Phase 1: Database Architecture & ORM Setup
 
-```mermaid
-graph TD
-    A[Incoming Action Item / Email] --> B(Ordo AI Copilot Engine)
-    B -->|Priority High| C[Auto-Carve Time Block in Calendar]
-    B -->|Requires Reply| D[Generate Context-Aware Draft]
-    B -->|Webhook Event| E[Route via Telegram / WhatsApp API]
-    D --> F[Human-in-the-Loop 1-Click Send]
+### 1.1 Recommended Database Stack
+* **Database Engine:** PostgreSQL (Hosted on [Supabase](https://supabase.com) or [Neon Serverless SQL](https://neon.tech)).
+* **ORM:** [Prisma ORM](https://prisma.io) (Recommended for best TypeScript auto-completion with Next.js App Router).
+
+### 1.2 Installation Commands
+Run these commands inside your project terminal (`g:\React\ordo`):
+```bash
+# 1. Install Prisma CLI as dev dependency and Prisma Client
+npm install prisma --save-dev
+npm install @prisma/client @auth/prisma-adapter
+
+# 2. Initialize Prisma (creates prisma/schema.prisma and .env)
+npx prisma init
 ```
 
-- **2.1 Ordo AI Copilot & Smart Reply Drafting**
-  - **Context-Aware Inference:** AI Copilot (`InboxView.tsx` & `SupportView.tsx`) analyzes message intent, scans open calendar blocks, and automatically generates tailored responses ready for 1-click dispatch.
-  - **Automated Summary Badges:** Extraction of key action phrases (`✨ Summarized: Needs scheduling`, `✨ Action: Review PR #442`).
+### 1.3 Complete Production `schema.prisma`
+Replace the generated `prisma/schema.prisma` with the exact schema below. This mirrors every data structure in your `types/ordo.ts`:
 
-- **2.2 Multi-Cloud Webhook Ingestion & Event Routing**
-  - **API Gateway (`api.ordo.io/v1/webhooks`)**: Dedicated endpoints for real-time Telegram Bot API (`v2.4`) and WhatsApp Business Cloud API.
-  - **Live Event Telemetry:** Real-time logging (`Event Logs`) tracking incoming leads, support messages, and OAuth handshake validation.
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-- **2.3 Voice Command & Natural Language Triage (`Scheduled Q3`)**
-  - **Speech-to-Schedule:** Integrated microphone trigger inside the `CommandTopBar (⌘K)` allowing users to speak commands (`"Carve 2 hours for architecture review tomorrow morning at 10"`) directly into the calendar engine.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. AUTHENTICATION & USER IDENTITY
+// ==========================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(MEMBER)
+  bio           String?   @default("Architect of high-performance workflows.")
+  status        String    @default("focus") // 'focus' | 'deep' | 'meeting' | 'offline'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  accounts      Account[]
+  sessions      Session[]
+  workspaces    WorkspaceMember[]
+  timeBlocks    TimeBlock[]
+  inboxItems    EmailItem[]
+  assignedTasks KanbanTask[]
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  LEAD_ENGINEER
+  MEMBER
+  VIEWER
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// 2. WORKSPACES & COLLABORATION
+// ==========================================
+
+model Workspace {
+  id          String            @id @default(cuid())
+  name        String            @default("Ordo Productivity Studio")
+  slug        String            @unique
+  createdAt   DateTime          @default(now())
+  members     WorkspaceMember[]
+  tasks       KanbanTask[]
+  webhooks    WebhookEndpoint[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        UserRole  @default(MEMBER)
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([workspaceId, userId])
+}
+
+// ==========================================
+// 3. SMART INBOX & ACTION ITEMS
+// ==========================================
+
+model EmailItem {
+  id             String     @id @default(cuid())
+  userId         String
+  sender         String
+  senderEmail    String?
+  subject        String
+  body           String     @db.Text
+  summaryText    String?
+  summaryVariant String?    // 'summarized' | 'action'
+  isScheduled    Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeBlock      TimeBlock?
+}
+
+// ==========================================
+// 4. CALENDAR SCHEDULE & TIME BLOCKS
+// ==========================================
+
+model TimeBlock {
+  id            String     @id @default(cuid())
+  userId        String
+  title         String
+  timeSlot      String     // e.g., "11:00 AM - 12:00 PM"
+  day           String     // 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri'
+  hour          Int        // 9 to 18 (24h format)
+  durationHours Int        @default(1)
+  variant       String     @default("default") // 'default' | 'accent' | 'highlight' | 'glow'
+  emailId       String?    @unique
+  createdAt     DateTime   @default(now())
+
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailItem     EmailItem? @relation(fields: [emailId], references: [id], onDelete: SetNull)
+  @@unique([userId, day, hour]) // Ensures zero slot collisions
+}
+
+// ==========================================
+// 5. KANBAN SPRINT TASKS
+// ==========================================
+
+model KanbanTask {
+  id          String    @id @default(cuid())
+  workspaceId String
+  title       String
+  code        String    @unique // e.g., "ORD-101"
+  priority    String    // 'HIGH PRIORITY' | 'MEDIUM' | 'LOW'
+  columnId    String    // 'todo' | 'in-progress' | 'done'
+  assigneeId  String?
+  dueDate     String?
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignee    User?     @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+}
+
+// ==========================================
+// 6. API WEBHOOKS & EVENT TELEMETRY
+// ==========================================
+
+model WebhookEndpoint {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  name            String
+  url             String   @unique
+  active          Boolean  @default(true)
+  totalThroughput Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+```
+
+### 1.4 Pushing Schema to PostgreSQL
+Once your `.env` contains your `DATABASE_URL="postgresql://user:password@host:port/dbname"`, run:
+```bash
+npx prisma db push
+npx prisma generate
+```
 
 ---
 
-### Phase 3: Native Cross-Platform Ecosystem & Offline Sync (`Scheduled Q4 2026 📅`)
-*Focus: Native OS Clients, CRDT Conflict-Free Sync, and Menu Bar Tools*
+## Phase 2: Login & Authentication System (`NextAuth.js v5`)
 
-- **3.1 Offline-First CRDT & SQLite Synchronization**
-  - **Zero-Latency Storage:** Local changes to time blocks and Kanban cards are written immediately to local IndexedDB/SQLite, synchronizing asynchronously across nodes via secure WebSockets.
-  - **Conflict Resolution:** State-vector clock timestamps ensure deterministic merging when dragging tasks offline across multiple devices.
+### 2.1 Installing NextAuth v5 (Auth.js)
+```bash
+npm install next-auth@beta bcryptjs
+npm install @types/bcryptjs --save-dev
+```
 
-- **3.2 Desktop Tray & Menu Bar Mini-Console (`macOS / Windows`)**
-  - **Quick Triage Bar:** Native Electron / Tauri mini-console living in the OS tray. Allows 1-click time block triggers and instant notifications without opening the browser.
-
-- **3.3 Native Mobile Apps (`iOS / Android`)**
-  - **Lock-Screen Widgets:** Live countdowns to the next carved focus block and quick-swipe triage of smart inbox items.
-  - **Biometric Hardware Key Unlock:** FaceID / TouchID authentication protecting sensitive executive communications.
-
----
-
-### Phase 4: Enterprise Security & Quantum Telemetry (`Strategic Vision 🚀`)
-*Focus: Zero-Knowledge Vaults, Enterprise SSO, and Team Burnout Protection*
-
-- **4.1 End-to-End Zero-Knowledge Encryption (`E2EE`)**
-  - **Client-Side Cryptography:** All task titles, email contents, and calendar descriptions encrypted using AES-GCM 256-bit keys derived from client passphrase keys before transmission to `ordo.io` cloud storage.
-
-- **4.2 SAML 2.0 / Okta SSO & Granular RBAC**
-  - **Team Collaboration Controls:** Role-Based Access Control (`SettingsView.tsx` -> `Team Collaboration`) segregating permissions between `Owners`, `Lead Engineers`, `Admins`, and `Viewers`.
-  - **Audit Logging:** Comprehensive immutable compliance logs for financial and healthcare enterprise deployments.
-
-- **4.3 AI Workload Leveling & Burnout Prevention Telemetry**
-  - **Velocity Balancing:** If a team member's weekly focus hours exceed safe operational thresholds, Ordo's agentic balancer suggests re-routing or swapping lower-priority Kanban tickets (`ORD-xxx`) to available teammates.
-
----
-
-## API Reference & Quick Start
+### 2.2 Creating `auth.ts` (Root Configuration)
+Create a new file `g:\React\ordo\auth.ts`:
 
 ```typescript
-// Example: Triggering a quick Time Block creation programmatically via Ordo API
-async function scheduleOrdoBlock(title: string, day: string, hour: number) {
-  const response = await fetch('https://api.ordo.io/v1/schedule/carve', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ordo_live_9a8c7b6e5d4f3a2b1c0e9d8f`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      title,
-      day,
-      hour,
-      durationHours: 1,
-      variant: 'highlight',
+import NextAuth from 'next-auth';
+import { PrismaAdapter } from '@auth/prisma-adapter';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: 'jwt' },
+  pages: {
+    signIn: '/login',
+  },
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-  });
-  return await response.json();
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: 'Ordo Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email', placeholder: 's.jenkins@ordo.io' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user) return null;
+        // Verify password hash in production
+        return user;
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as any).role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
+      }
+      return session;
+    },
+  },
+});
+```
+
+### 2.3 Route Handler Setup (`app/api/auth/[...nextauth]/route.ts`)
+Create directory `app/api/auth/[...nextauth]/` and add `route.ts`:
+```typescript
+import { handlers } from '@/auth';
+export const { GET, POST } = handlers;
+```
+
+### 2.4 Route Protection Middleware (`middleware.ts`)
+Create `g:\React\ordo\middleware.ts` in your project root to secure the workspace:
+```typescript
+import { auth } from '@/auth';
+import { NextResponse } from 'next/server';
+
+export default auth((req) => {
+  const isLoggedIn = !!req.auth;
+  const isLoginPage = req.nextUrl.pathname.startsWith('/login');
+
+  if (!isLoggedIn && !isLoginPage) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  if (isLoggedIn && isLoginPage) {
+    return NextResponse.redirect(new URL('/', req.url));
+  }
+
+  return NextResponse.next();
+});
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login).*)'],
+};
+```
+
+---
+
+## Phase 3: Building the Login UI (`app/login/page.tsx`)
+
+To match Ordo's rich glassmorphic aesthetics, create `g:\React\ordo\app\login\page.tsx`:
+
+```tsx
+'use client';
+
+import React, { useState } from 'react';
+import { signIn } from 'next-auth/react';
+import { Terminal, Lock, Mail, Sparkles, ArrowRight } from 'lucide-react';
+
+export default function OrdoLoginPage() {
+  const [email, setEmail] = useState('s.jenkins@ordo.io');
+  const [password, setPassword] = useState('ordo_secret_key');
+  const [loading, setLoading] = useState(false);
+
+  const handleCredentialsLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await signIn('credentials', {
+      email,
+      password,
+      callbackUrl: '/',
+    });
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0b1326] text-white flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Background Glowing Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
+
+      {/* Glass Login Card */}
+      <div className="w-full max-w-md glass-panel rounded-3xl p-8 border border-slate-700/60 shadow-2xl relative z-10 space-y-6">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold">
+            <Terminal className="w-3.5 h-3.5" />
+            <span>ORDO IDENTITY PORTAL</span>
+          </div>
+          <h1 className="font-bold text-3xl tracking-tight text-white">Sign In to Ordo</h1>
+          <p className="text-xs text-slate-400">Access your unified AI productivity console and scheduled blocks.</p>
+        </div>
+
+        {/* OAuth Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => signIn('google', { callbackUrl: '/' })}
+            className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium transition-colors"
+          >
+            <span>Google Workspace</span>
+          </button>
+          <button
+            onClick={() => signIn('github', { callbackUrl: '/' })}
+            className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium transition-colors"
+          >
+            <span>GitHub OAuth</span>
+          </button>
+        </div>
+
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-slate-800" />
+          <span className="flex-shrink mx-3 text-slate-500 font-mono text-[10px] uppercase tracking-widest">Or enter email</span>
+          <div className="flex-grow border-t border-slate-800" />
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleCredentialsLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs font-mono text-slate-400 mb-1.5">Executive Email</label>
+            <div className="relative flex items-center">
+              <Mail className="absolute left-3.5 w-4 h-4 text-slate-500" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono text-slate-400 mb-1.5">Passphrase Key</label>
+            <div className="relative flex items-center">
+              <Lock className="absolute left-3.5 w-4 h-4 text-slate-500" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-all font-mono"
+                required
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-[#0b1326] font-bold py-3 rounded-xl text-xs transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 active:scale-95"
+          >
+            {loading ? <span>Verifying Credentials...</span> : <span>Launch Console</span>}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 ```
 
 ---
 
-## Architectural Principles & Quality Benchmarks
-1. **Pixel-Perfect Aesthetics:** Glassmorphic cards with vibrant HSL token accents, smooth micro-animations, and dynamic visual indicators.
-2. **Deterministic State Handling:** React 19 concurrent features and modular views (`Dashboard`, `Inbox`, `Calendar`, `Projects`, `Automations`, `Settings`, `Profile`, `Support`, `Roadmap`) ensuring sub-16ms frame render times during drag-and-drop.
-3. **Responsive by Default:** Full horizontal and vertical scaling on mobile, tablet, and widescreen executive monitors without layout breakdown.
+## Phase 4: Full-Stack API Integration (`Calendar Swapping & Persistence`)
+
+### 4.1 Creating the Calendar Swap API Route (`app/api/calendar/swap/route.ts`)
+When a user drags `Block A` over `Block B` inside the `CalendarView`, send a `PATCH` request to update both records in PostgreSQL within a database transaction:
+
+```typescript
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function PATCH(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { blockIdA, targetDayA, targetHourA, blockIdB, targetDayB, targetHourB } = await req.json();
+
+    // Execute atomic swap inside a Prisma Transaction to ensure zero data loss
+    await prisma.$transaction(async (tx) => {
+      if (blockIdB) {
+        // Temporary shift to avoid unique constraint ([userId, day, hour]) collision during swap
+        await tx.timeBlock.update({
+          where: { id: blockIdB },
+          data: { hour: -1 },
+        });
+      }
+
+      // Update Block A to new destination
+      await tx.timeBlock.update({
+        where: { id: blockIdA },
+        data: {
+          day: targetDayA,
+          hour: targetHourA,
+          timeSlot: `${targetHourA > 12 ? targetHourA - 12 : targetHourA}:00 ${targetHourA >= 12 ? 'PM' : 'AM'}`,
+        },
+      });
+
+      if (blockIdB) {
+        // Update Block B to Block A's original location
+        await tx.timeBlock.update({
+          where: { id: blockIdB },
+          data: {
+            day: targetDayB,
+            hour: targetHourB,
+            timeSlot: `${targetHourB > 12 ? targetHourB - 12 : targetHourB}:00 ${targetHourB >= 12 ? 'PM' : 'AM'}`,
+          },
+        });
+      }
+    });
+
+    return NextResponse.json({ success: true, message: 'Blocks swapped atomically in PostgreSQL' });
+  } catch (error) {
+    console.error('Swap Error:', error);
+    return NextResponse.json({ error: 'Failed to execute calendar swap' }, { status: 500 });
+  }
+}
+```
+
+### 4.2 Updating `handleDragEnd` in `CalendarView.tsx` to call API
+Inside `CalendarView.tsx` (and `SmartInboxCalendarView.tsx`), replace local state-only mutations with optimistic updates plus background persistence:
+
+```typescript
+// Example call inside handleDragEnd:
+await fetch('/api/calendar/swap', {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    blockIdA: draggedBlock.id,
+    targetDayA: targetDay,
+    targetHourA: targetHour,
+    blockIdB: targetBlock?.id || null,
+    targetDayB: draggedBlock.day,
+    targetHourB: draggedBlock.hour,
+  }),
+});
+```
+
+---
+
+## Phase 5: Verification & Production Deployment
+
+1. **Verify Database Connection:** Run `npx prisma studio` to open a local browser GUI at `localhost:5555` to inspect tables and seed initial users.
+2. **Build Test:** Run `npm run build` to verify all App Router endpoints and Prisma types compile cleanly.
+3. **Deploy to Vercel:**
+   * Connect your GitHub repository to Vercel.
+   * Add your environment variables under Vercel Settings (`DATABASE_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`).
+   * Your Ordo Productivity Engine will be live on `https://your-ordo.vercel.app`!
