@@ -1,4 +1,4 @@
-export type TabType = 'dashboard' | 'calendar' | 'inbox' | 'projects' | 'automations' | 'settings' | 'support';
+export type TabType = 'dashboard' | 'calendar' | 'inbox' | 'projects' | 'automations' | 'settings' | 'support' | 'profile';
 
 export interface EmailItem {
   id: string;

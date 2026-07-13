@@ -120,6 +120,50 @@ const DraggableInboxItem: React.FC<{
   );
 };
 
+/* Draggable Time Block inside Calendar Slot */
+const DraggableTimeBlock: React.FC<{
+  block: TimeBlock;
+  onDeleteBlock: (id: string) => void;
+}> = ({ block, onDeleteBlock }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: block.id,
+    data: { type: 'block', block },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`group w-full h-full rounded-xl p-2 flex flex-col justify-between border relative overflow-hidden transition-all duration-200 cursor-grab active:cursor-grabbing shadow-md select-none ${
+        isDragging
+          ? 'opacity-30 scale-95 ring-2 ring-cyan-400 shadow-2xl'
+          : block.variant === 'highlight'
+          ? 'bg-teal-950/70 border-teal-500/50 text-teal-200 shadow-teal-500/10 hover:border-teal-400'
+          : block.variant === 'accent'
+          ? 'bg-indigo-950/70 border-indigo-500/50 text-indigo-200 shadow-indigo-500/10 hover:border-indigo-400'
+          : 'bg-slate-800/90 border-slate-700/80 text-slate-200 hover:border-cyan-400/50'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <span className="font-mono text-[11px] font-bold tracking-tight line-clamp-1">
+          {block.title}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteBlock(block.id);
+          }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-red-400 transition-opacity"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
+      <span className="text-[10px] font-mono opacity-70 truncate">{block.timeSlot}</span>
+    </div>
+  );
+};
+
 /* Droppable Time Slot Cell */
 const DroppableTimeSlot: React.FC<{
   day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri';
@@ -128,23 +172,26 @@ const DroppableTimeSlot: React.FC<{
   onDeleteBlock: (id: string) => void;
 }> = ({ day, hour, block, onDeleteBlock }) => {
   const slotId = `slot-${day}-${hour}`;
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef, isOver, active } = useDroppable({
     id: slotId,
-    data: { type: 'slot', day, hour },
+    data: { type: 'slot', day, hour, existingBlock: block },
   });
 
   const formattedHour = hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`;
+  const isDraggingOverSwap = isOver && block && active?.id !== block.id;
 
   return (
     <div
       ref={setNodeRef}
       className={`h-20 border-b border-r border-slate-800/50 p-1.5 relative transition-all duration-200 ${
-        isOver
+        isOver && !block
           ? 'bg-cyan-500/15 border-2 border-dashed border-cyan-400 shadow-[inset_0_0_20px_rgba(56,189,248,0.25)] z-20'
+          : isDraggingOverSwap
+          ? 'bg-amber-500/20 border-2 border-dashed border-amber-400 shadow-[inset_0_0_20px_rgba(245,158,11,0.25)] z-20'
           : 'hover:bg-slate-800/20'
       }`}
     >
-      {/* Drop Indicator when hovering */}
+      {/* Drop Indicator when hovering over empty */}
       {isOver && !block && (
         <div className="w-full h-full rounded-xl border-2 border-dashed border-cyan-400 bg-cyan-950/40 flex items-center justify-center p-2 text-center animate-pulse">
           <span className="font-mono text-xs text-cyan-300 font-bold">
@@ -153,31 +200,17 @@ const DroppableTimeSlot: React.FC<{
         </div>
       )}
 
-      {/* Existing Scheduled Block */}
-      {block && !isOver && (
-        <div
-          className={`group w-full h-full rounded-xl p-2 flex flex-col justify-between border relative overflow-hidden transition-all shadow-md ${
-            block.variant === 'highlight'
-              ? 'bg-teal-950/60 border-teal-500/50 text-teal-200 shadow-teal-500/10'
-              : block.variant === 'accent'
-              ? 'bg-indigo-950/60 border-indigo-500/50 text-indigo-200 shadow-indigo-500/10'
-              : 'bg-slate-800/90 border-slate-700/80 text-slate-200 hover:border-cyan-400/50'
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <span className="font-mono text-[11px] font-bold tracking-tight">
-              {block.title}
-            </span>
-            <button
-              onClick={() => onDeleteBlock(block.id)}
-              className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-red-400 transition-opacity"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-          <span className="text-[10px] font-mono opacity-70 truncate">{block.timeSlot}</span>
+      {/* Swap Indicator when hovering over existing block */}
+      {isDraggingOverSwap && (
+        <div className="absolute inset-1.5 rounded-xl border-2 border-dashed border-amber-400 bg-amber-950/80 flex items-center justify-center p-1 text-center z-30 animate-pulse">
+          <span className="font-mono text-[10px] text-amber-300 font-bold">
+            ⚡ Swap time
+          </span>
         </div>
       )}
+
+      {/* Existing Scheduled Block */}
+      {block && <DraggableTimeBlock block={block} onDeleteBlock={onDeleteBlock} />}
     </div>
   );
 };
@@ -190,6 +223,7 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
   const [emails, setEmails] = useState<EmailItem[]>(initialEmails);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(initialTimeBlocks);
   const [activeEmail, setActiveEmail] = useState<EmailItem | null>(null);
+  const [activeBlock, setActiveBlock] = useState<TimeBlock | null>(null);
   const [selectedDay, setSelectedDay] = useState<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri'>('Tue');
   const [viewMode, setViewMode] = useState<'Week' | 'Day'>('Week');
   
@@ -216,14 +250,19 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
     if (active.data.current?.type === 'email') {
       setActiveEmail(active.data.current.email as EmailItem);
     }
+    if (active.data.current?.type === 'block') {
+      setActiveBlock(active.data.current.block as TimeBlock);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveEmail(null);
+    setActiveBlock(null);
 
     if (!over) return;
 
+    // 1. Dragging email onto slot
     if (active.data.current?.type === 'email' && over.data.current?.type === 'slot') {
       const email = active.data.current.email as EmailItem;
       const { day, hour } = over.data.current as { day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri'; hour: number };
@@ -247,6 +286,49 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
       setEmails((prev) =>
         prev.map((e) => (e.id === email.id ? { ...e, isScheduled: true } : e))
       );
+    }
+
+    // 2. Dragging existing time block across slots -> SWAP or MOVE
+    if (active.data.current?.type === 'block' && over.data.current?.type === 'slot') {
+      const draggedBlock = active.data.current.block as TimeBlock;
+      const { day: targetDay, hour: targetHour, existingBlock: targetBlock } = over.data.current as {
+        day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri';
+        hour: number;
+        existingBlock?: TimeBlock;
+      };
+
+      if (draggedBlock.day === targetDay && draggedBlock.hour === targetHour) return;
+
+      const getSlotString = (h: number) => {
+        const h1 = h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
+        const nextH = h + 1 > 12 ? (h + 1 === 13 ? 1 : h + 1 - 12) : h + 1;
+        const h2 = `${nextH}:00 ${h + 1 >= 12 ? 'PM' : 'AM'}`;
+        return `${h1} - ${h2}`;
+      };
+
+      if (targetBlock && targetBlock.id !== draggedBlock.id) {
+        // SWAP
+        setTimeBlocks((prev) =>
+          prev.map((b) => {
+            if (b.id === draggedBlock.id) {
+              return { ...b, day: targetDay, hour: targetHour, timeSlot: getSlotString(targetHour) };
+            }
+            if (b.id === targetBlock.id) {
+              return { ...b, day: draggedBlock.day, hour: draggedBlock.hour, timeSlot: getSlotString(draggedBlock.hour) };
+            }
+            return b;
+          })
+        );
+      } else {
+        // MOVE
+        setTimeBlocks((prev) =>
+          prev.map((b) =>
+            b.id === draggedBlock.id
+              ? { ...b, day: targetDay, hour: targetHour, timeSlot: getSlotString(targetHour) }
+              : b
+          )
+        );
+      }
     }
   };
 
@@ -489,6 +571,15 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
               <Clock className="w-3.5 h-3.5" />
               <span>Drag to calendar slot to schedule</span>
             </div>
+          </div>
+        ) : activeBlock ? (
+          <div className="w-64 glass-card rounded-2xl p-4 border-2 border-amber-400 shadow-[0_0_35px_rgba(245,158,11,0.5)] bg-[#0f172a]/95 text-white scale-105 pointer-events-none rotate-3 animate-pulse">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-bold text-xs text-amber-400">⚡ Swapping / Moving</span>
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+            </div>
+            <h4 className="font-bold text-sm text-white mb-2 leading-snug">{activeBlock.title}</h4>
+            <div className="text-[11px] font-mono text-slate-300">Hover over another slot to drop or swap</div>
           </div>
         ) : null}
       </DragOverlay>

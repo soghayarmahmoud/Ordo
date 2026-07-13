@@ -51,7 +51,7 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
           const newLog: EventLogItem = {
             id: `log-${Date.now()}`,
             title: nextState ? `${wh.name} Routing Enabled` : `${wh.name} Routing Paused`,
-            subtitle: `User toggled webhook state via Lumina Console`,
+            subtitle: `User toggled webhook state via Ordo Console`,
             timeAgo: 'Just now',
             iconVariant: nextState ? 'success' : 'error',
           };
@@ -82,7 +82,7 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
             statusText: 'Connected • Routing active',
             statusVariant: 'active',
             stats: '45 msg/hr',
-            endpointUrl: 'https://api.nexus-os.io/v1/webhooks/wa_9104c8f',
+            endpointUrl: 'https://api.ordo.io/v1/webhooks/wa_9104c8f',
           };
 
           const newLog: EventLogItem = {
@@ -113,7 +113,7 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
       statusText: 'Routing active',
       stats: '0 msg/hr',
       statusVariant: 'active',
-      endpointUrl: `https://api.nexus-os.io/v1/webhooks/${newWebhookName.toLowerCase().replace(/\s+/g, '_')}_${Math.random().toString(36).substring(7)}`,
+      endpointUrl: `https://api.ordo.io/v1/webhooks/${newWebhookName.toLowerCase().replace(/\s+/g, '_')}_${Math.random().toString(36).substring(7)}`,
       enabled: true,
       iconType: newWebhookName.toLowerCase().includes('what') ? 'whatsapp' : 'telegram',
     };

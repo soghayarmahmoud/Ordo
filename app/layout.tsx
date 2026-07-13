@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata = {
   title: "Ordo | Unified Productivity Workspace",
-  description: "Lumina Console powered unified productivity workspace: Smart Inbox, Time-blocking, Kanban, and Automations.",
+  description: "Ordo Console powered unified productivity workspace: Smart Inbox, Time-blocking, Kanban, Automations, and AI Assistant.",
 };
 
 export default function RootLayout({

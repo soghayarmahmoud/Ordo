@@ -83,7 +83,7 @@ export const INITIAL_KANBAN_COLUMNS: KanbanColumnData[] = [
 export const INITIAL_KANBAN_TASKS: KanbanTask[] = [
   {
     id: 'task-1',
-    code: 'NEX-402',
+    code: 'ORD-402',
     title: 'Optimize Database Query for User Feed Pipeline',
     priority: 'HIGH PRIORITY',
     subtasksCompleted: 1,
@@ -95,7 +95,7 @@ export const INITIAL_KANBAN_TASKS: KanbanTask[] = [
   },
   {
     id: 'task-2',
-    code: 'NEX-405',
+    code: 'ORD-405',
     title: 'Design System Token Audit',
     priority: 'MEDIUM',
     subtasksCompleted: 0,
@@ -106,7 +106,7 @@ export const INITIAL_KANBAN_TASKS: KanbanTask[] = [
   },
   {
     id: 'task-3',
-    code: 'NEX-399',
+    code: 'ORD-399',
     title: 'Implement WebGL Shader Backgrounds',
     priority: 'HIGH PRIORITY',
     subtasksCompleted: 4,
@@ -117,7 +117,7 @@ export const INITIAL_KANBAN_TASKS: KanbanTask[] = [
   },
   {
     id: 'task-4',
-    code: 'NEX-386',
+    code: 'ORD-386',
     title: 'Update Dependencies in package.json',
     priority: 'LOW',
     subtasksCompleted: 3,
@@ -136,7 +136,7 @@ export const INITIAL_WEBHOOKS: AutomationWebhook[] = [
     statusText: 'Routing active',
     stats: '124 msg/hr',
     statusVariant: 'active',
-    endpointUrl: 'https://api.nexus-os.io/v1/webhooks/tg_8f92a1b',
+    endpointUrl: 'https://api.ordo.io/v1/webhooks/tg_8f92a1b',
     enabled: true,
     iconType: 'telegram',
   },

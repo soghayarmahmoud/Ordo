@@ -140,7 +140,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
     const newTask: KanbanTask = {
       id: `task-${Date.now()}`,
-      code: `NEX-${Math.floor(400 + Math.random() * 99)}`,
+      code: `ORD-${Math.floor(400 + Math.random() * 99)}`,
       title: newTitle,
       priority: newPriority,
       subtasksCompleted: 0,
