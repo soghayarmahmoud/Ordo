@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 120" width="100%" height="100%">
+  <defs>
+    <!-- التدرج اللوني الأساسي (Electric Blue to Secondary Violet) -->
+    <linearGradient id="ordo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    
+    <!-- تأثير التوهج الزجاجي (Glassmorphism Glow) -->
+    <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- خلفية داكنة للمعاينة فقط (يمكنك حذف هذا السطر عند إضافته للتطبيق) -->
+  <rect width="100%" height="100%" fill="#0b1326" rx="16" />
+
+  <!-- الرمز البصري (Icon) -->
+  <g transform="translate(30, 25)">
+    <!-- المربع الأول: يمثل التقويم (Calendar) -->
+    <rect x="0" y="15" width="40" height="40" rx="12" fill="none" stroke="url(#ordo-gradient)" stroke-width="7" filter="url(#neon-glow)" />
+    
+    <!-- المربع الثاني: يمثل المهام (Inbox/Board) -->
+    <rect x="22" y="0" width="40" height="40" rx="12" fill="none" stroke="#adc6ff" stroke-width="7" opacity="0.9" />
+    
+    <!-- نقطة مضيئة: تمثل الأتمتة والنبض اللحظي (Automations) -->
+    <circle cx="62" cy="40" r="6" fill="#4edea3" filter="url(#neon-glow)" />
+  </g>
+
+  <!-- النص الأساسي (Brand Name) -->
+  <text x="120" y="72" font-family="Inter, sans-serif" font-size="44" font-weight="700" fill="#dae2fd" letter-spacing="-0.03em">
+    Ordo
+  </text>
+
+  <!-- الشعار النصي التقني (Tagline) -->
+  <text x="125" y="92" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="500" fill="#8c909f" letter-spacing="0.1em">
+    PRODUCTIVITY_ENGINE
+  </text>
+</svg>
