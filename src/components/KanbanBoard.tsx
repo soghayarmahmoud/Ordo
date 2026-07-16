@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -18,15 +18,22 @@ import { Filter, Plus, Users, Sparkles } from 'lucide-react';
 import { KanbanColumnData, KanbanTask, KanbanPriority } from '@/src/types/ordo';
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanTaskCard } from './KanbanTaskCard';
+import {
+  createKanbanTaskAction,
+  updateKanbanTaskColumnAction,
+  deleteKanbanTaskAction,
+} from '@/actions/workspace';
 
 interface KanbanBoardProps {
   initialColumns: KanbanColumnData[];
   initialTasks: KanbanTask[];
+  workspaceId?: string;
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   initialColumns,
   initialTasks,
+  workspaceId,
 }) => {
   const [columns] = useState<KanbanColumnData[]>(initialColumns);
   const [tasks, setTasks] = useState<KanbanTask[]>(initialTasks);
@@ -38,6 +45,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPriority, setNewPriority] = useState<KanbanPriority>('HIGH PRIORITY');
   const [newSubtasksCount, setNewSubtasksCount] = useState(4);
+
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -81,11 +92,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         const overIndex = prevTasks.findIndex((t) => t.id === overId);
 
         if (prevTasks[activeIndex].columnId !== prevTasks[overIndex].columnId) {
+          const newColumnId = prevTasks[overIndex].columnId;
           const newTasks = [...prevTasks];
           newTasks[activeIndex] = {
             ...newTasks[activeIndex],
-            columnId: prevTasks[overIndex].columnId,
+            columnId: newColumnId,
           };
+          if (workspaceId && !activeId.startsWith('task-')) {
+            updateKanbanTaskColumnAction(activeId, newColumnId);
+          }
           return arrayMove(newTasks, activeIndex, overIndex);
         }
         return prevTasks;
@@ -97,11 +112,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setTasks((prevTasks) => {
         const activeIndex = prevTasks.findIndex((t) => t.id === activeId);
         if (prevTasks[activeIndex].columnId !== overId) {
+          const newColumnId = overId as 'todo' | 'in-progress' | 'done';
           const newTasks = [...prevTasks];
           newTasks[activeIndex] = {
             ...newTasks[activeIndex],
-            columnId: overId as 'todo' | 'in-progress' | 'done',
+            columnId: newColumnId,
           };
+          if (workspaceId && !activeId.startsWith('task-')) {
+            updateKanbanTaskColumnAction(activeId, newColumnId);
+          }
           return arrayMove(newTasks, activeIndex, activeIndex);
         }
         return prevTasks;
@@ -134,7 +153,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
@@ -151,13 +170,34 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       columnId: targetColumnId,
     };
 
-    setTasks((prev) => [...prev, newTask]);
+    setTasks((prev) => [newTask, ...prev]);
     setIsModalOpen(false);
+
+    if (workspaceId && workspaceId !== 'default-workspace') {
+      const res = await createKanbanTaskAction({
+        workspaceId,
+        title: newTitle,
+        priority: newPriority,
+        columnId: targetColumnId,
+      });
+      if (res.success && res.task) {
+        setTasks((prev) =>
+          prev.map((item) =>
+            item.id === newTask.id
+              ? { ...item, id: res.task.id, code: res.task.code || item.code }
+              : item
+          )
+        );
+      }
+    }
   };
 
   /* Delete Task Handler */
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    if (workspaceId && workspaceId !== 'default-workspace' && !taskId.startsWith('task-')) {
+      await deleteKanbanTaskAction(taskId);
+    }
   };
 
   /* Increment Subtask Handler */

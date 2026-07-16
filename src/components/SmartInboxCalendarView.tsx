@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   DndContext, 
   DragOverlay, 
@@ -25,10 +25,17 @@ import {
   Mail
 } from 'lucide-react';
 import { EmailItem, TimeBlock } from '@/src/types/ordo';
+import { 
+  createTimeBlockAction, 
+  deleteTimeBlockAction, 
+  createEmailItemAction, 
+  deleteEmailItemAction 
+} from '@/actions/workspace';
 
 interface SmartInboxCalendarViewProps {
   initialEmails: EmailItem[];
   initialTimeBlocks: TimeBlock[];
+  userId?: string;
 }
 
 /* Draggable Inbox Item Component */
@@ -219,12 +226,13 @@ const DroppableTimeSlot: React.FC<{
 export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
   initialEmails,
   initialTimeBlocks,
+  userId,
 }) => {
   const [emails, setEmails] = useState<EmailItem[]>(initialEmails);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(initialTimeBlocks);
   const [activeEmail, setActiveEmail] = useState<EmailItem | null>(null);
   const [activeBlock, setActiveBlock] = useState<TimeBlock | null>(null);
-  const [selectedDay, setSelectedDay] = useState<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri'>('Tue');
+  const [selectedDay, setSelectedDay] = useState<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri'>('Wed');
   const [viewMode, setViewMode] = useState<'Week' | 'Day'>('Week');
   
   // New action item state
@@ -232,6 +240,14 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
   const [newSender, setNewSender] = useState('');
   const [newSubject, setNewSubject] = useState('');
   const [newSummary, setNewSummary] = useState('');
+
+  useEffect(() => {
+    setEmails(initialEmails);
+  }, [initialEmails]);
+
+  useEffect(() => {
+    setTimeBlocks(initialTimeBlocks);
+  }, [initialTimeBlocks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -255,7 +271,7 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveEmail(null);
     setActiveBlock(null);
@@ -271,7 +287,7 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
       const hourLabel = hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`;
       const newBlock: TimeBlock = {
         id: `block-${Date.now()}`,
-        title: `${hourLabel.split(' ')[0]} ${email.subject.substring(0, 10)}...`,
+        title: `${hourLabel.split(' ')[0]} ${email.subject.substring(0, 15)}...`,
         timeSlot: `${hourLabel} - ${hour + 1 > 12 ? hour + 1 - 12 : hour + 1}:00 ${hour >= 12 ? 'PM' : 'AM'}`,
         day,
         hour,
@@ -281,11 +297,22 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
       };
 
       setTimeBlocks((prev) => [...prev.filter((b) => !(b.day === day && b.hour === hour)), newBlock]);
-      
-      // Mark email as scheduled
       setEmails((prev) =>
         prev.map((e) => (e.id === email.id ? { ...e, isScheduled: true } : e))
       );
+
+      if (userId && userId !== 'anonymous') {
+        await createTimeBlockAction({
+          userId,
+          title: newBlock.title,
+          timeSlot: newBlock.timeSlot,
+          day: newBlock.day,
+          hour: newBlock.hour,
+          durationHours: 1,
+          variant: newBlock.variant,
+          emailId: email.id,
+        });
+      }
     }
 
     // 2. Dragging existing time block across slots -> SWAP or MOVE
@@ -319,6 +346,28 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
             return b;
           })
         );
+        if (userId && userId !== 'anonymous') {
+          await createTimeBlockAction({
+            userId,
+            title: draggedBlock.title,
+            timeSlot: getSlotString(targetHour),
+            day: targetDay,
+            hour: targetHour,
+            durationHours: draggedBlock.durationHours,
+            variant: draggedBlock.variant,
+            emailId: draggedBlock.emailId,
+          });
+          await createTimeBlockAction({
+            userId,
+            title: targetBlock.title,
+            timeSlot: getSlotString(draggedBlock.hour),
+            day: draggedBlock.day,
+            hour: draggedBlock.hour,
+            durationHours: targetBlock.durationHours,
+            variant: targetBlock.variant,
+            emailId: targetBlock.emailId,
+          });
+        }
       } else {
         // MOVE
         setTimeBlocks((prev) =>
@@ -328,27 +377,45 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
               : b
           )
         );
+        if (userId && userId !== 'anonymous') {
+          await createTimeBlockAction({
+            userId,
+            title: draggedBlock.title,
+            timeSlot: getSlotString(targetHour),
+            day: targetDay,
+            hour: targetHour,
+            durationHours: draggedBlock.durationHours,
+            variant: draggedBlock.variant,
+            emailId: draggedBlock.emailId,
+          });
+        }
       }
     }
   };
 
-  const handleDeleteEmail = (id: string) => {
+  const handleDeleteEmail = async (id: string) => {
     setEmails((prev) => prev.filter((e) => e.id !== id));
+    if (userId && userId !== 'anonymous' && !id.startsWith('email-')) {
+      await deleteEmailItemAction(id);
+    }
   };
 
-  const handleDeleteBlock = (id: string) => {
+  const handleDeleteBlock = async (id: string) => {
     setTimeBlocks((prev) => prev.filter((b) => b.id !== id));
+    if (userId && userId !== 'anonymous' && !id.startsWith('block-')) {
+      await deleteTimeBlockAction(id);
+    }
   };
 
-  const handleQuickSchedule = (email: EmailItem) => {
-    // Find first open slot on selectedDay or Tue
+  const handleQuickSchedule = async (email: EmailItem) => {
+    // Find first open slot on selectedDay
     for (const h of hours) {
       const exists = timeBlocks.some((b) => b.day === selectedDay && b.hour === h);
       if (!exists) {
         const hourLabel = h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
         const newBlock: TimeBlock = {
           id: `block-${Date.now()}`,
-          title: `${hourLabel.split(' ')[0]} ${email.subject.substring(0, 10)}...`,
+          title: `${hourLabel.split(' ')[0]} ${email.subject.substring(0, 15)}...`,
           timeSlot: `${hourLabel} - ${h + 1 > 12 ? h + 1 - 12 : h + 1}:00 ${h >= 12 ? 'PM' : 'AM'}`,
           day: selectedDay,
           hour: h,
@@ -358,12 +425,24 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
         };
         setTimeBlocks((prev) => [...prev, newBlock]);
         setEmails((prev) => prev.map((e) => (e.id === email.id ? { ...e, isScheduled: true } : e)));
+        if (userId && userId !== 'anonymous') {
+          await createTimeBlockAction({
+            userId,
+            title: newBlock.title,
+            timeSlot: newBlock.timeSlot,
+            day: newBlock.day,
+            hour: newBlock.hour,
+            durationHours: 1,
+            variant: newBlock.variant,
+            emailId: email.id,
+          });
+        }
         break;
       }
     }
   };
 
-  const handleAddNewEmail = (e: React.FormEvent) => {
+  const handleAddNewEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSender || !newSubject) return;
 
@@ -372,6 +451,7 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
       sender: newSender,
       time: 'Just now',
       subject: newSubject,
+      body: 'Simulated incoming message content via Ordo Console.',
       summaryBadge: newSummary
         ? { text: `✨ Summarized: ${newSummary}`, variant: 'summarized' }
         : undefined,
@@ -383,6 +463,20 @@ export const SmartInboxCalendarView: React.FC<SmartInboxCalendarViewProps> = ({
     setNewSubject('');
     setNewSummary('');
     setIsAddingEmail(false);
+
+    if (userId && userId !== 'anonymous') {
+      const res = await createEmailItemAction({
+        userId,
+        sender: newSender,
+        subject: newSubject,
+        body: 'Simulated incoming message content via Ordo Console.',
+        summaryText: newSummary ? `Summarized: ${newSummary}` : undefined,
+        summaryVariant: 'summarized',
+      });
+      if (res.success && res.email) {
+        setEmails((prev) => prev.map((item) => (item.id === newEmail.id ? { ...item, id: res.email.id } : item)));
+      }
+    }
   };
 
   return (

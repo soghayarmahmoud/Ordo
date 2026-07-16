@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Mail, 
   Sparkles, 
@@ -21,15 +21,18 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { EmailItem, TimeBlock } from '@/src/types/ordo';
+import { createEmailItemAction, deleteEmailItemAction } from '@/actions/workspace';
 
 interface InboxViewProps {
   initialEmails: EmailItem[];
   onQuickSchedule?: (email: EmailItem) => void;
+  userId?: string;
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
   initialEmails,
   onQuickSchedule,
+  userId,
 }) => {
   const [emails, setEmails] = useState<EmailItem[]>(initialEmails);
   const [selectedEmail, setSelectedEmail] = useState<EmailItem | null>(initialEmails[0] || null);
@@ -50,6 +53,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [newSubject, setNewSubject] = useState('');
   const [newBody, setNewBody] = useState('');
   const [newSummary, setNewSummary] = useState('');
+
+  useEffect(() => {
+    setEmails(initialEmails);
+    if (!selectedEmail && initialEmails.length > 0) {
+      setSelectedEmail(initialEmails[0]);
+    }
+  }, [initialEmails]);
 
   const filteredEmails = emails.filter((e) => {
     const matchesSearch = 
@@ -80,12 +90,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
+    const toDelete = [...selectedIds];
     setEmails((prev) => prev.filter((e) => !selectedIds.includes(e.id)));
     if (selectedEmail && selectedIds.includes(selectedEmail.id)) {
       setSelectedEmail(null);
     }
     setSelectedIds([]);
+
+    if (userId && userId !== 'anonymous') {
+      for (const id of toDelete) {
+        if (!id.startsWith('email-')) {
+          await deleteEmailItemAction(id);
+        }
+      }
+    }
   };
 
   const handleScheduleSelected = () => {
@@ -101,7 +120,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setTimeout(() => {
       if (email.subject.includes('Roadmap')) {
         setAiDraftText(
-          `Hi ${email.sender.split(' ')[0]},\n\nThanks for reaching out regarding the Q3 Roadmap Review! I've checked my Ordo time-blocks and carved out Thursday at 11:00 AM for our alignment session.\n\nLooking forward to reviewing priorities together.\n\nBest regards,\nSarah Jenkins`
+          `Hi ${email.sender.split(' ')[0]},\n\nThanks for reaching out regarding the Q3 Roadmap Review! I've checked my Ordo time-blocks and carved out Wednesday at 09:00 AM for our alignment session.\n\nLooking forward to reviewing priorities together.\n\nBest regards,\nSarah Jenkins`
         );
       } else if (email.subject.includes('Sprint')) {
         setAiDraftText(
@@ -122,7 +141,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setTimeout(() => setCopiedDraft(false), 2000);
   };
 
-  const handleAddNewEmail = (e: React.FormEvent) => {
+  const handleAddNewEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSender || !newSubject) return;
 
@@ -145,6 +164,20 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setNewBody('');
     setNewSummary('');
     setIsAdding(false);
+
+    if (userId && userId !== 'anonymous') {
+      const res = await createEmailItemAction({
+        userId,
+        sender: newSender,
+        subject: newSubject,
+        body: newBody || 'Simulated incoming message content via Ordo Console.',
+        summaryText: newSummary ? `Summarized: ${newSummary}` : undefined,
+        summaryVariant: 'summarized',
+      });
+      if (res.success && res.email) {
+        setEmails((prev) => prev.map((item) => (item.id === newEmail.id ? { ...item, id: res.email.id } : item)));
+      }
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Send, 
   MessageCircle, 
@@ -17,15 +17,18 @@ import {
   Trash2
 } from 'lucide-react';
 import { AutomationWebhook, EventLogItem } from '@/src/types/ordo';
+import { createWebhookAction, toggleWebhookAction, deleteWebhookAction } from '@/actions/workspace';
 
 interface AutomationsViewProps {
   initialWebhooks: AutomationWebhook[];
   initialLogs: EventLogItem[];
+  workspaceId?: string;
 }
 
 export const AutomationsView: React.FC<AutomationsViewProps> = ({
   initialWebhooks,
   initialLogs,
+  workspaceId,
 }) => {
   const [webhooks, setWebhooks] = useState<AutomationWebhook[]>(initialWebhooks);
   const [eventLogs, setEventLogs] = useState<EventLogItem[]>(initialLogs);
@@ -33,8 +36,12 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [newWebhookName, setNewWebhookName] = useState('');
 
+  useEffect(() => {
+    setWebhooks(initialWebhooks);
+  }, [initialWebhooks]);
+
   /* Toggle Webhook state */
-  const handleToggleWebhook = (id: string) => {
+  const handleToggleWebhook = async (id: string) => {
     setWebhooks((prev) =>
       prev.map((wh) => {
         if (wh.id === id) {
@@ -62,6 +69,11 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
         return wh;
       })
     );
+
+    const target = webhooks.find((wh) => wh.id === id);
+    if (target && workspaceId && workspaceId !== 'default-workspace' && !id.startsWith('webhook-')) {
+      await toggleWebhookAction(id, !target.enabled);
+    }
   };
 
   /* Copy Endpoint URL */
@@ -102,9 +114,11 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
   };
 
   /* Add Webhook */
-  const handleCreateWebhook = (e: React.FormEvent) => {
+  const handleCreateWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWebhookName.trim()) return;
+
+    const endpointUrl = `https://api.ordo.io/v1/webhooks/${newWebhookName.toLowerCase().replace(/\s+/g, '_')}_${Math.random().toString(36).substring(7)}`;
 
     const newWh: AutomationWebhook = {
       id: `webhook-${Date.now()}`,
@@ -113,7 +127,7 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
       statusText: 'Routing active',
       stats: '0 msg/hr',
       statusVariant: 'active',
-      endpointUrl: `https://api.ordo.io/v1/webhooks/${newWebhookName.toLowerCase().replace(/\s+/g, '_')}_${Math.random().toString(36).substring(7)}`,
+      endpointUrl,
       enabled: true,
       iconType: newWebhookName.toLowerCase().includes('what') ? 'whatsapp' : 'telegram',
     };
@@ -130,11 +144,27 @@ export const AutomationsView: React.FC<AutomationsViewProps> = ({
       iconVariant: 'success',
     };
     setEventLogs((logs) => [newLog, ...logs]);
+
+    if (workspaceId && workspaceId !== 'default-workspace') {
+      const res = await createWebhookAction({
+        workspaceId,
+        name: newWebhookName,
+        url: endpointUrl,
+      });
+      if (res.success && res.webhook) {
+        setWebhooks((prev) =>
+          prev.map((wh) => (wh.id === newWh.id ? { ...wh, id: res.webhook.id } : wh))
+        );
+      }
+    }
   };
 
   /* Delete Webhook */
-  const handleDeleteWebhook = (id: string) => {
+  const handleDeleteWebhook = async (id: string) => {
     setWebhooks((prev) => prev.filter((wh) => wh.id !== id));
+    if (workspaceId && workspaceId !== 'default-workspace' && !id.startsWith('webhook-')) {
+      await deleteWebhookAction(id);
+    }
   };
 
   /* Render Icon for Event Logs */

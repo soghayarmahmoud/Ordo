@@ -23,12 +23,14 @@ interface DashboardViewProps {
   onSelectTab: (tab: TabType) => void;
   initialEmails: EmailItem[];
   initialTimeBlocks: TimeBlock[];
+  userId?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectTab,
   initialEmails,
   initialTimeBlocks,
+  userId,
 }) => {
   return (
     <div className="space-y-6">
@@ -191,6 +193,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <SmartInboxCalendarView
           initialEmails={initialEmails}
           initialTimeBlocks={initialTimeBlocks}
+          userId={userId}
         />
       </div>
     </div>
