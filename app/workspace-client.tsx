@@ -21,6 +21,7 @@ import {
   INITIAL_EVENT_LOGS,
 } from '@/src/data/mockData';
 import { Session } from 'next-auth';
+import { SessionProvider } from 'next-auth/react';
 import { createTimeBlockAction } from '@/actions/workspace';
 
 interface WorkspaceClientProps {
@@ -130,6 +131,9 @@ export function OrdoWorkspaceClient({
             initialEmails={emails}
             initialTimeBlocks={timeBlocks}
             userId={userId}
+            session={session}
+            initialTasksCount={formattedKanbanTasks.length}
+            initialWebhooksCount={formattedWebhooks.length}
           />
         );
       case 'inbox':
@@ -193,7 +197,14 @@ export function OrdoWorkspaceClient({
       case 'settings':
         return <SettingsView />;
       case 'profile':
-        return <ProfileView />;
+        return (
+          <ProfileView
+            initialTasksCount={formattedKanbanTasks.length}
+            initialTimeBlocksCount={timeBlocks.length}
+            initialEmailsCount={emails.length}
+            initialWebhooksCount={formattedWebhooks.length}
+          />
+        );
       case 'support':
         return <SupportView />;
       default:
@@ -203,44 +214,51 @@ export function OrdoWorkspaceClient({
             initialEmails={emails}
             initialTimeBlocks={timeBlocks}
             userId={userId}
+            session={session}
+            initialTasksCount={formattedKanbanTasks.length}
+            initialWebhooksCount={formattedWebhooks.length}
           />
         );
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-[#0b1326] text-slate-100 font-sans selection:bg-cyan-500/30">
-      <SidebarNavigation
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          setIsMobileMenuOpen(false);
-        }}
-        inboxCount={emails.filter((e) => !e.isScheduled).length}
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-        <CommandTopBar
-          onNewTaskClick={() => setActiveTab('projects')}
-          onMobileMenuClick={() => setIsMobileMenuOpen(true)}
-          onProfileClick={() => setActiveTab('profile')}
-          searchPlaceholder={
-            activeTab === 'automations'
-              ? 'Search automations, webhooks...'
-              : activeTab === 'projects'
-              ? 'Search sprint board (ORD-xxx)...'
-              : activeTab === 'inbox'
-              ? 'Search action items and summaries...'
-              : `Ordo Command (⌘K) — ${session?.user?.name || 'Workspace'}`
-          }
+    <SessionProvider session={session}>
+      <div className="flex min-h-screen bg-[#0b1326] text-slate-100 font-sans selection:bg-cyan-500/30">
+        <SidebarNavigation
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            setIsMobileMenuOpen(false);
+          }}
+          inboxCount={emails.filter((e) => !e.isScheduled).length}
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {renderActiveView()}
-        </main>
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+          <CommandTopBar
+            userName={session?.user?.name || undefined}
+            userImage={session?.user?.image || undefined}
+            onNewTaskClick={() => setActiveTab('projects')}
+            onMobileMenuClick={() => setIsMobileMenuOpen(true)}
+            onProfileClick={() => setActiveTab('profile')}
+            searchPlaceholder={
+              activeTab === 'automations'
+                ? 'Search automations, webhooks...'
+                : activeTab === 'projects'
+                ? 'Search sprint board (ORD-xxx)...'
+                : activeTab === 'inbox'
+                ? 'Search action items and summaries...'
+                : `Ordo Command (⌘K) — ${session?.user?.name || 'Workspace'}`
+            }
+          />
+
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+            {renderActiveView()}
+          </main>
+        </div>
       </div>
-    </div>
+    </SessionProvider>
   );
 }

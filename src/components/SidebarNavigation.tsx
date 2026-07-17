@@ -71,9 +71,9 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
         {/* Brand Logo Header */}
         <div>
           <div className="p-5 flex items-center justify-between border-b border-slate-800/40">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 group">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 border border-cyan-400/30">
-                <Terminal className="w-5 h-5 text-white animate-pulse" />
+                <Terminal className="w-5 h-5 text-white group-hover:rotate-12 transition-transform duration-300" />
               </div>
               <div>
                 <h1 className="font-bold text-base tracking-tight text-white flex items-center gap-1.5">
@@ -184,8 +184,8 @@ export const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
 
           <div className="mt-4 pt-3 border-t border-slate-800/40 px-3 py-2 flex items-center justify-between text-xs font-mono text-slate-500">
             <span>ORDO v2.0.0</span>
-            <span className="flex items-center gap-1.5 text-cyan-400/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+            <span className="flex items-center gap-1.5 text-emerald-400/90">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               Online
             </span>
           </div>

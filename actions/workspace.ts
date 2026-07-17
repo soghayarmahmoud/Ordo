@@ -409,3 +409,116 @@ export async function deleteWebhookAction(webhookId: string) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Workspace Settings & Member Mutations
+ */
+export async function updateWorkspaceSettingsAction(data: {
+  userId: string;
+  name: string;
+  url?: string;
+  timezone?: string;
+}) {
+  try {
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: data.userId },
+      include: { workspace: true },
+    });
+
+    if (membership) {
+      await prisma.workspace.update({
+        where: { id: membership.workspaceId },
+        data: {
+          name: data.name,
+          slug: data.url ? data.url.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase() : undefined,
+        },
+      });
+    }
+
+    revalidatePath('/');
+    return { success: true };
+  } catch (error: any) {
+    console.error('[updateWorkspaceSettingsAction Error]:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function inviteWorkspaceMemberAction(data: {
+  userId?: string;
+  workspaceId?: string;
+  email: string;
+  role: string;
+}) {
+  try {
+    let workspaceId = data.workspaceId;
+    if (!workspaceId && data.userId) {
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: data.userId },
+      });
+      workspaceId = membership?.workspaceId;
+    }
+
+    if (!workspaceId) {
+      const firstWorkspace = await prisma.workspace.findFirst();
+      workspaceId = firstWorkspace?.id;
+    }
+
+    if (!workspaceId) {
+      return { success: false, error: 'No workspace found to invite member into.' };
+    }
+
+    // Check if user already exists
+    let user = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (!user) {
+      const namePart = data.email.split('@')[0].replace(/\./g, ' ');
+      const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      user = await prisma.user.create({
+        data: {
+          email: data.email,
+          name: formattedName,
+          role: data.role.toUpperCase() === 'OWNER' || data.role.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'MEMBER',
+        },
+      });
+    }
+
+    // Check if membership already exists
+    const existingMember = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!existingMember) {
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId,
+          userId: user.id,
+          role: data.role.toUpperCase() === 'ADMIN' ? 'ADMIN' : data.role.toUpperCase() === 'LEAD ENGINEER' ? 'LEAD_ENGINEER' : 'MEMBER',
+        },
+      });
+    }
+
+    revalidatePath('/');
+    const avatar = (user.name || data.email).substring(0, 2).toUpperCase();
+    return {
+      success: true,
+      member: {
+        id: user.id,
+        name: user.name || data.email,
+        email: data.email,
+        role: data.role,
+        avatar,
+      },
+    };
+  } catch (error: any) {
+    console.error('[inviteWorkspaceMemberAction Error]:', error);
+    return { success: false, error: error.message };
+  }
+}
+

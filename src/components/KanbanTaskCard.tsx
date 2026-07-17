@@ -138,18 +138,43 @@ export const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
       {/* Card Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-slate-800/60">
         {/* Assignees Avatars */}
-        <div className="flex -space-x-2 overflow-hidden">
-          {task.assignees.map((avatar, idx) => (
-            <div
-              key={idx}
-              className="inline-block h-6 w-6 rounded-full ring-2 ring-[#0f172a] bg-gradient-to-tr from-cyan-500 to-indigo-600 p-[1px]"
-            >
-              <div className="w-full h-full rounded-full bg-[#1e293b] flex items-center justify-center font-mono text-[9px] font-bold text-cyan-200">
-                A{idx + 1}
+        <div className="flex -space-x-2 overflow-hidden items-center">
+          {task.assignees.map((assignee, idx) => {
+            const isUrl = assignee.startsWith('http') || assignee.startsWith('/');
+            const initials = !isUrl && assignee.length <= 3 
+              ? assignee.toUpperCase() 
+              : !isUrl 
+              ? assignee.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()
+              : `A${idx + 1}`;
+
+            return (
+              <div
+                key={idx}
+                className="inline-block h-6 w-6 rounded-full ring-2 ring-[#0f172a] bg-gradient-to-tr from-cyan-500 to-indigo-600 p-[1px] overflow-hidden shrink-0 relative"
+                title={`Assignee: ${assignee}`}
+              >
+                {isUrl && (
+                  <img
+                    src={assignee}
+                    alt="Assignee"
+                    className="w-full h-full rounded-full object-cover bg-[#1e293b]"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const fb = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (fb) fb.style.display = 'flex';
+                    }}
+                  />
+                )}
+                <div
+                  style={{ display: isUrl ? 'none' : 'flex' }}
+                  className="w-full h-full rounded-full bg-[#1e293b] items-center justify-center font-mono text-[9px] font-bold text-cyan-200"
+                >
+                  {initials}
+                </div>
               </div>
-            </div>
-          ))}
-          <div className="inline-block h-6 w-6 rounded-full ring-2 ring-[#0f172a] bg-slate-800 flex items-center justify-center text-[10px] font-mono text-slate-400 hover:text-white cursor-pointer">
+            );
+          })}
+          <div className="inline-block h-6 w-6 rounded-full ring-2 ring-[#0f172a] bg-slate-800 flex items-center justify-center text-[10px] font-mono text-slate-400 hover:text-white cursor-pointer shrink-0">
             +
           </div>
         </div>

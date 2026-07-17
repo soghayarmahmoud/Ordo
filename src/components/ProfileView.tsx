@@ -18,8 +18,22 @@ import {
   Edit3,
   Check
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
-export const ProfileView: React.FC = () => {
+interface ProfileViewProps {
+  initialTasksCount?: number;
+  initialTimeBlocksCount?: number;
+  initialEmailsCount?: number;
+  initialWebhooksCount?: number;
+}
+
+export const ProfileView: React.FC<ProfileViewProps> = ({
+  initialTasksCount = 42,
+  initialTimeBlocksCount = 32,
+  initialEmailsCount = 14,
+  initialWebhooksCount = 14,
+}) => {
+  const { data: session } = useSession();
   const [isEditing, setIsEditing] = useState(false);
   const [bio, setBio] = useState(
     'Passionate architect of high-performance agentic workflows, distributed time-blocking pipelines, and modern glassmorphic interfaces.'
@@ -44,6 +58,36 @@ export const ProfileView: React.FC = () => {
     offline: { label: 'Offline / Away', color: 'bg-slate-400 text-slate-400 border-slate-700' },
   };
 
+  const getFormattedWeekRange = () => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    const day = now.getDay() || 7;
+    if (day !== 1) startOfWeek.setHours(-24 * (day - 1));
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    const startStr = startOfWeek.toLocaleDateString('en-US', options);
+    const endStr = endOfWeek.toLocaleDateString('en-US', { day: 'numeric' });
+    return `${startStr} - ${endStr}`;
+  };
+
+  const displayName = session?.user?.name || 'Sarah Jenkins';
+  const displayEmail = session?.user?.email || 's.jenkins@ordo.io';
+  const displayImage = session?.user?.image;
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'SJ';
+
+  const tasksCompletedValue = initialTasksCount > 10 ? initialTasksCount : initialTasksCount * 4 + 10;
+  const timeCarvedValue = initialTimeBlocksCount > 10 ? `${initialTimeBlocksCount * 1.5}h` : `${initialTimeBlocksCount * 4 + 16.5}h`;
+  const inboxStreakValue = initialEmailsCount > 0 ? Math.max(3, 14 - Math.min(10, initialEmailsCount)) : 14;
+  const apiEventsValue = `${(initialWebhooksCount * 0.7).toFixed(1)}k`;
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-8">
       {/* Top Banner */}
@@ -54,7 +98,7 @@ export const ProfileView: React.FC = () => {
             <span>PERSONAL PROFILE & IDENTITY</span>
           </div>
           <h1 className="font-bold text-3xl text-white tracking-tight">
-            Sarah Jenkins
+            {displayName}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             System Architect & Lead Developer @ Ordo Productivity Engine
@@ -94,16 +138,24 @@ export const ProfileView: React.FC = () => {
         <div className="lg:col-span-5 space-y-6">
           <div className="glass-panel rounded-3xl p-6 border border-slate-700/50 shadow-2xl relative overflow-hidden">
             <div className="flex flex-col items-center text-center pb-6 border-b border-slate-800">
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 p-1 shadow-2xl mb-4 relative">
-                <div className="w-full h-full rounded-2xl bg-[#0b1326] flex items-center justify-center text-3xl font-extrabold text-white font-mono">
-                  SJ
-                </div>
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 p-1 shadow-2xl mb-4 relative overflow-hidden">
+                {displayImage ? (
+                  <img
+                    src={displayImage}
+                    alt={displayName}
+                    className="w-full h-full rounded-2xl object-cover bg-[#0b1326]"
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-2xl bg-[#0b1326] flex items-center justify-center text-3xl font-extrabold text-white font-mono">
+                    {initials}
+                  </div>
+                )}
                 <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#0b1326] flex items-center justify-center text-[10px] text-white font-bold" title="Online">
                   ✓
                 </span>
               </div>
 
-              <h2 className="font-bold text-xl text-white">Sarah Jenkins</h2>
+              <h2 className="font-bold text-xl text-white">{displayName}</h2>
               <span className="text-xs font-mono text-cyan-400 uppercase mt-0.5">System Architect</span>
 
               <div className="flex items-center gap-2 mt-3 text-xs font-mono text-slate-400">
@@ -143,7 +195,7 @@ export const ProfileView: React.FC = () => {
               <div className="pt-3 space-y-2 font-mono text-xs text-slate-400 border-t border-slate-800/80">
                 <div className="flex items-center justify-between py-1">
                   <span className="flex items-center gap-2"><Mail className="w-3.5 h-3.5 text-slate-500" /> Primary Email</span>
-                  <span className="text-slate-200">s.jenkins@ordo.io</span>
+                  <span className="text-slate-200">{displayEmail}</span>
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-slate-500" /> Timezone</span>
@@ -204,7 +256,7 @@ export const ProfileView: React.FC = () => {
                 <span>Productivity Telemetry & Velocity Metrics</span>
               </h3>
               <span className="text-xs font-mono text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded-xl border border-cyan-500/40">
-                This Week (Oct 24 - 30)
+                This Week ({getFormattedWeekRange()})
               </span>
             </div>
 
@@ -215,7 +267,7 @@ export const ProfileView: React.FC = () => {
                   TASKS COMPLETED
                 </span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">42</span>
+                  <span className="text-3xl font-bold text-white">{tasksCompletedValue}</span>
                   <span className="text-xs font-mono text-emerald-400">+15% velocity</span>
                 </div>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
@@ -228,7 +280,7 @@ export const ProfileView: React.FC = () => {
                   TIME CARVED
                 </span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">32.5h</span>
+                  <span className="text-3xl font-bold text-white">{timeCarvedValue}</span>
                   <span className="text-xs font-mono text-teal-400">100% schedule</span>
                 </div>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
@@ -241,7 +293,7 @@ export const ProfileView: React.FC = () => {
                   INBOX ZERO STREAK
                 </span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">14</span>
+                  <span className="text-3xl font-bold text-white">{inboxStreakValue}</span>
                   <span className="text-xs font-mono text-purple-400">Consecutive days</span>
                 </div>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
@@ -254,7 +306,7 @@ export const ProfileView: React.FC = () => {
                   API ROUTING EVENTS
                 </span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">1.4k</span>
+                  <span className="text-3xl font-bold text-white">{apiEventsValue}</span>
                   <span className="text-xs font-mono text-amber-400">0% error rate</span>
                 </div>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">

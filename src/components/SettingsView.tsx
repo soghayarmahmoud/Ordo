@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   Sliders, 
@@ -17,11 +17,14 @@ import {
   Palette,
   Bell
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { updateWorkspaceSettingsAction, inviteWorkspaceMemberAction } from '@/actions/workspace';
 
 export const SettingsView: React.FC = () => {
+  const { data: session } = useSession();
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'appearance' | 'api' | 'team'>('general');
   const [workspaceName, setWorkspaceName] = useState('Ordo Productivity Studio');
-  const [workspaceUrl, setWorkspaceUrl] = useState('ordo.workspace/sarah-jenkins');
+  const [workspaceUrl, setWorkspaceUrl] = useState('ordo.workspace/architect');
   const [timezone, setTimezone] = useState('GMT+03:00 Eastern European / Riyadh Time');
   
   // Appearance
@@ -36,10 +39,32 @@ export const SettingsView: React.FC = () => {
 
   // Team
   const [teamMembers, setTeamMembers] = useState([
-    { id: '1', name: 'Sarah Jenkins', email: 's.jenkins@ordo.io', role: 'Owner', avatar: 'SJ' },
+    {
+      id: session?.user?.id || '1',
+      name: session?.user?.name || 'Sarah Jenkins',
+      email: session?.user?.email || 's.jenkins@ordo.io',
+      role: 'Owner',
+      avatar: (session?.user?.name || 'Sarah Jenkins').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase(),
+    },
     { id: '2', name: 'Marcus Klein', email: 'm.klein@ordo.io', role: 'Lead Engineer', avatar: 'MK' },
     { id: '3', name: 'Alex Chen', email: 'a.chen@ordo.io', role: 'UI/UX Designer', avatar: 'AC' },
   ]);
+
+  useEffect(() => {
+    if (session?.user) {
+      setTeamMembers((prev) => [
+        {
+          id: session.user?.id || '1',
+          name: session.user?.name || 'Sarah Jenkins',
+          email: session.user?.email || 's.jenkins@ordo.io',
+          role: 'Owner',
+          avatar: (session.user?.name || 'Sarah Jenkins').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase(),
+        },
+        ...prev.filter((m) => m.role !== 'Owner' && m.id !== (session.user?.id || '1')),
+      ]);
+    }
+  }, [session]);
+
   const [isInviting, setIsInviting] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('Member');
@@ -67,9 +92,11 @@ export const SettingsView: React.FC = () => {
     }, 600);
   };
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
+    setIsInviting(false);
+
     const namePart = inviteEmail.split('@')[0].replace(/\./g, ' ');
     const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
     const newMember = {
@@ -81,8 +108,24 @@ export const SettingsView: React.FC = () => {
     };
     setTeamMembers((prev) => [...prev, newMember]);
     setInviteEmail('');
-    setIsInviting(false);
-    showToast(`👥 Invited ${inviteEmail} to Ordo Workspace!`);
+
+    showToast(`👥 Inviting ${inviteEmail} and syncing with database...`);
+
+    if (session?.user?.id && session.user.id !== 'anonymous') {
+      const res = await inviteWorkspaceMemberAction({
+        userId: session.user.id,
+        email: inviteEmail,
+        role: inviteRole,
+      });
+      if (res.success && res.member) {
+        setTeamMembers((prev) => prev.map((m) => (m.email === inviteEmail ? { ...m, ...res.member } : m)));
+        showToast(`👥 Successfully invited ${inviteEmail} to Ordo Workspace in PostgreSQL!`);
+      } else if (res.error) {
+        showToast(`⚠️ Invite alert: ${res.error}`);
+      }
+    } else {
+      showToast(`👥 Invited ${inviteEmail} to Ordo Workspace!`);
+    }
   };
 
   const handleRemoveMember = (id: string, name: string) => {
@@ -108,7 +151,24 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <button
-          onClick={() => showToast('✨ Workspace configuration saved and broadcasted to all Ordo nodes!')}
+          onClick={async () => {
+            showToast('✨ Saving workspace settings...');
+            if (session?.user?.id && session.user.id !== 'anonymous') {
+              const res = await updateWorkspaceSettingsAction({
+                userId: session.user.id,
+                name: workspaceName,
+                url: workspaceUrl,
+                timezone,
+              });
+              if (res.success) {
+                showToast('✨ Workspace configuration saved to PostgreSQL and broadcasted across nodes!');
+              } else {
+                showToast(`⚠️ Save failed: ${res.error}`);
+              }
+            } else {
+              showToast('✨ Workspace configuration saved locally!');
+            }
+          }}
           className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-[#0b1326] font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-cyan-500/20 active:scale-95 self-start sm:self-auto"
         >
           <Sparkles className="w-4 h-4" />

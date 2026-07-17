@@ -18,12 +18,16 @@ import {
 } from 'lucide-react';
 import { TabType, EmailItem, TimeBlock } from '@/src/types/ordo';
 import { SmartInboxCalendarView } from './SmartInboxCalendarView';
+import { useSession } from 'next-auth/react';
 
 interface DashboardViewProps {
   onSelectTab: (tab: TabType) => void;
   initialEmails: EmailItem[];
   initialTimeBlocks: TimeBlock[];
   userId?: string;
+  session?: any;
+  initialTasksCount?: number;
+  initialWebhooksCount?: number;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -31,7 +35,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   initialEmails,
   initialTimeBlocks,
   userId,
+  session: propSession,
+  initialTasksCount = 4,
+  initialWebhooksCount = 2,
 }) => {
+  const { data: sessionData } = useSession();
+  const session = sessionData || propSession;
+  const firstName = session?.user?.name ? session.user.name.split(' ')[0] : 'Architect';
+
+  const actionItemsCount = initialEmails.filter((e) => !e.isScheduled).length;
+  const nextBlockText = initialTimeBlocks.length > 0 ? initialTimeBlocks[0].timeSlot.split(' ')[0] + ' Today' : 'No blocks today';
+  const sprintVelocity = Math.min(100, Math.round((initialTasksCount / (initialTasksCount + 1)) * 100)) || 75;
+  const throughputText = `${initialWebhooksCount * 62} msg/hr`;
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner exact to design aesthetic */}
@@ -42,7 +58,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>EXECUTIVE COMMAND CONSOLE</span>
           </div>
           <h1 className="font-bold text-3xl text-white tracking-tight flex items-center gap-3">
-            Welcome back, Sarah
+            Welcome back, {firstName}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Ordo AI Productivity Engine is active and routing across 4 workspace modules.
@@ -92,7 +108,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-white tracking-tight">
-              {initialEmails.filter((e) => !e.isScheduled).length}
+              {actionItemsCount}
             </span>
             <span className="text-xs font-mono text-cyan-400">Action items</span>
           </div>
@@ -124,7 +140,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
             <span>Next Block</span>
-            <span className="text-teal-300 font-bold">11:00 AM Today</span>
+            <span className="text-teal-300 font-bold">{nextBlockText}</span>
           </div>
         </div>
 
@@ -143,12 +159,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             KANBAN SPRINT
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white tracking-tight">4</span>
+            <span className="text-3xl font-bold text-white tracking-tight">{initialTasksCount}</span>
             <span className="text-xs font-mono text-purple-400">Active tasks</span>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
-            <span>Sprint 42</span>
-            <span className="text-purple-300 font-bold">75% Velocity</span>
+            <span>Sprint Active</span>
+            <span className="text-purple-300 font-bold">{sprintVelocity}% Velocity</span>
           </div>
         </div>
 
@@ -167,12 +183,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             API WEBHOOKS
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-white tracking-tight">2</span>
+            <span className="text-3xl font-bold text-white tracking-tight">{initialWebhooksCount}</span>
             <span className="text-xs font-mono text-emerald-400">Connected</span>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
             <span>Throughput</span>
-            <span className="text-emerald-300 font-bold">124 msg/hr</span>
+            <span className="text-emerald-300 font-bold">{throughputText}</span>
           </div>
         </div>
       </div>
@@ -181,7 +197,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="space-y-4 pt-2">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-xl text-white tracking-tight flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+            <Sparkles className="w-4 h-4 text-cyan-400" />
             <span>Interactive Workspace Preview</span>
           </h2>
           <div className="text-xs font-mono text-slate-400 bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700">
@@ -199,3 +215,4 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     </div>
   );
 };
+

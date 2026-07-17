@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HelpCircle, 
   Sparkles, 
@@ -17,17 +17,29 @@ import {
   RefreshCw,
   Cpu
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 export const SupportView: React.FC = () => {
+  const { data: session } = useSession();
+  const firstName = session?.user?.name ? session.user.name.split(' ')[0] : 'Sarah';
+
   const [messages, setMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; time: string }>>([
     {
       sender: 'ai',
-      text: "Hello Sarah! I'm your Ordo AI Copilot. Ask me anything about time-blocking, drag-and-swap mechanics, API webhooks, or workspace configuration.",
+      text: `Hello ${firstName}! I'm your Ordo AI Copilot. Ask me anything about time-blocking, drag-and-swap mechanics, API webhooks, or workspace configuration.`,
       time: 'Just now',
     },
   ]);
   const [inputQuery, setInputQuery] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
+
+  // Toast state
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
 
   // FAQ Accordions
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -37,6 +49,22 @@ export const SupportView: React.FC = () => {
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketDesc, setTicketDesc] = useState('');
   const [ticketPriority, setTicketPriority] = useState('High');
+
+  useEffect(() => {
+    if (session?.user?.name) {
+      const name = session.user.name.split(' ')[0];
+      setMessages((prev) =>
+        prev.map((m, idx) =>
+          idx === 0
+            ? {
+                ...m,
+                text: `Hello ${name}! I'm your Ordo AI Copilot. Ask me anything about time-blocking, drag-and-swap mechanics, API webhooks, or workspace configuration.`,
+              }
+            : m
+        )
+      );
+    }
+  }, [session?.user?.name]);
 
   const faqs = [
     {
@@ -89,7 +117,7 @@ export const SupportView: React.FC = () => {
   const handleCreateTicket = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticketSubject) return;
-    alert(`🎫 High-Priority Support Ticket "${ticketSubject}" dispatched to Ordo Engineering team!`);
+    showToast(`🎫 High-Priority Support Ticket "${ticketSubject}" dispatched to Ordo Engineering team!`);
     setTicketSubject('');
     setTicketDesc('');
     setIsTicketOpen(false);
@@ -191,6 +219,13 @@ export const SupportView: React.FC = () => {
         </div>
       )}
 
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 glass-card bg-[#0f172a]/95 border-2 border-cyan-400 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in duration-200">
+          <CheckCircle2 className="w-5 h-5 text-cyan-400" />
+          <span className="text-xs font-mono font-bold">{toastMsg}</span>
+        </div>
+      )}
+
       {/* Main Support Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
@@ -207,7 +242,7 @@ export const SupportView: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={() => setMessages([{ sender: 'ai', text: "Hello Sarah! Ask me anything about Ordo tools, time swapping, or automations.", time: 'Just now' }])}
+              onClick={() => setMessages([{ sender: 'ai', text: `Hello ${firstName}! Ask me anything about Ordo tools, time swapping, or automations.`, time: 'Just now' }])}
               className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-white transition-colors"
               title="Reset Chat"
             >

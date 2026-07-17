@@ -72,3 +72,10 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 1);
 }
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(51, 65, 85, 0.8) rgba(11, 19, 38, 0.5);
+}
+
