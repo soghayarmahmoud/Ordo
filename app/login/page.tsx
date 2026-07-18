@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { signInWithGoogleAction } from '@/actions/auth';
 import {
   Mail,
   Lock,
@@ -28,6 +29,7 @@ function LoginFormContent() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [isGooglePending, startGoogleTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -61,8 +63,9 @@ function LoginFormContent() {
   };
 
   const handleGoogleSignIn = () => {
-    setIsPending(true);
-    signIn('google', { callbackUrl });
+    startGoogleTransition(() => {
+      signInWithGoogleAction(callbackUrl);
+    });
   };
 
   return (
@@ -90,7 +93,7 @@ function LoginFormContent() {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={isPending}
+          disabled={isGooglePending}
           className="w-full group relative flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-[#1e293b]/90 to-[#0f172a]/90 hover:from-slate-800 hover:to-slate-900 border border-cyan-500/40 hover:border-cyan-400 transition-all shadow-lg shadow-cyan-500/10 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
         >
           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">

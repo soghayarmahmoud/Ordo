@@ -45,8 +45,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const actionItemsCount = initialEmails.filter((e) => !e.isScheduled).length;
   const nextBlockText = initialTimeBlocks.length > 0 ? initialTimeBlocks[0].timeSlot.split(' ')[0] + ' Today' : 'No blocks today';
-  const sprintVelocity = Math.min(100, Math.round((initialTasksCount / (initialTasksCount + 1)) * 100)) || 75;
-  const throughputText = `${initialWebhooksCount * 62} msg/hr`;
+  const sprintVelocity = initialTasksCount > 0 ? 100 : 0; // Or dynamically calculate from completed tasks later
+  const throughputText = `${initialWebhooksCount} active endpoints`;
 
   return (
     <div className="space-y-6">

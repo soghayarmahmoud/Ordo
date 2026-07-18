@@ -83,10 +83,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     .join('')
     .toUpperCase() || 'SJ';
 
-  const tasksCompletedValue = initialTasksCount > 10 ? initialTasksCount : initialTasksCount * 4 + 10;
-  const timeCarvedValue = initialTimeBlocksCount > 10 ? `${initialTimeBlocksCount * 1.5}h` : `${initialTimeBlocksCount * 4 + 16.5}h`;
-  const inboxStreakValue = initialEmailsCount > 0 ? Math.max(3, 14 - Math.min(10, initialEmailsCount)) : 14;
-  const apiEventsValue = `${(initialWebhooksCount * 0.7).toFixed(1)}k`;
+  const tasksCompletedValue = initialTasksCount || 0;
+  const timeCarvedValue = `${initialTimeBlocksCount || 0}h`;
+  const inboxStreakValue = initialEmailsCount === 0 ? 1 : 0; // simplistic streak
+  const apiEventsValue = `${initialWebhooksCount || 0}`;
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-8">

@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TabType, EmailItem, TimeBlock, KanbanTask, AutomationWebhook } from '@/src/types/ordo';
 import { SidebarNavigation } from '@/src/components/SidebarNavigation';
 import { CommandTopBar } from '@/src/components/CommandTopBar';
@@ -12,14 +10,7 @@ import { InboxView } from '@/src/components/InboxView';
 import { SettingsView } from '@/src/components/SettingsView';
 import { ProfileView } from '@/src/components/ProfileView';
 import { SupportView } from '@/src/components/SupportView';
-import {
-  INITIAL_INBOX_ITEMS,
-  INITIAL_TIME_BLOCKS,
-  INITIAL_KANBAN_COLUMNS,
-  INITIAL_KANBAN_TASKS,
-  INITIAL_WEBHOOKS,
-  INITIAL_EVENT_LOGS,
-} from '@/src/data/mockData';
+import { INITIAL_KANBAN_COLUMNS, INITIAL_EVENT_LOGS } from '@/src/data/mockData';
 import { Session } from 'next-auth';
 import { SessionProvider } from 'next-auth/react';
 import { createTimeBlockAction } from '@/actions/workspace';
@@ -30,6 +21,7 @@ interface WorkspaceClientProps {
   initialDbTasks: any[];
   initialDbEmails: any[];
   initialDbWebhooks: any[];
+  workspaceId: string;
 }
 
 export function OrdoWorkspaceClient({
@@ -38,15 +30,16 @@ export function OrdoWorkspaceClient({
   initialDbTasks,
   initialDbEmails,
   initialDbWebhooks,
+  workspaceId,
 }: WorkspaceClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const isUserAuthenticated = Boolean(session?.user?.id);
   const userId = session?.user?.id || 'anonymous';
-  const workspaceId = (initialDbTasks && initialDbTasks[0]?.workspaceId) || 'default-workspace';
 
-  // 1. Format TimeBlocks: use actual database data if authenticated and present, otherwise mock fallback
+  // Format TimeBlocks: use actual database data if authenticated
   const formattedTimeBlocks: TimeBlock[] =
     isUserAuthenticated && initialDbTimeBlocks && initialDbTimeBlocks.length > 0
       ? initialDbTimeBlocks.map((b) => ({
@@ -59,11 +52,9 @@ export function OrdoWorkspaceClient({
           variant: (b.variant as any) || 'default',
           emailId: b.emailId || undefined,
         }))
-      : isUserAuthenticated && initialDbTimeBlocks
-      ? []
-      : INITIAL_TIME_BLOCKS;
+      : [];
 
-  // 2. Format KanbanTasks: use actual database data if authenticated
+  // Format KanbanTasks: use actual database data
   const formattedKanbanTasks: KanbanTask[] =
     isUserAuthenticated && initialDbTasks && initialDbTasks.length > 0
       ? initialDbTasks.map((t) => ({
@@ -78,11 +69,9 @@ export function OrdoWorkspaceClient({
           columnId: (t.columnId as any) || 'todo',
           dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString() : undefined,
         }))
-      : isUserAuthenticated && initialDbTasks
-      ? []
-      : INITIAL_KANBAN_TASKS;
+      : [];
 
-  // 3. Format Emails/Smart Inbox Items: use actual database data if authenticated
+  // Format Emails/Smart Inbox Items
   const formattedEmails: EmailItem[] =
     isUserAuthenticated && initialDbEmails && initialDbEmails.length > 0
       ? initialDbEmails.map((e) => ({
@@ -96,11 +85,9 @@ export function OrdoWorkspaceClient({
             : undefined,
           isScheduled: e.isScheduled || false,
         }))
-      : isUserAuthenticated && initialDbEmails
-      ? []
-      : INITIAL_INBOX_ITEMS;
+      : [];
 
-  // 4. Format Webhooks: use actual database data if authenticated
+  // Format Webhooks
   const formattedWebhooks: AutomationWebhook[] =
     isUserAuthenticated && initialDbWebhooks && initialDbWebhooks.length > 0
       ? initialDbWebhooks.map((w) => ({
@@ -108,19 +95,41 @@ export function OrdoWorkspaceClient({
           name: w.name,
           version: 'v1.0',
           statusText: w.active ? 'Routing active' : 'Paused',
-          stats: `${w.totalThroughput || 120} msg/hr`,
+          stats: `${w.totalThroughput || 0} msg/hr`,
           statusVariant: w.active ? 'active' : 'disconnected',
           endpointUrl: w.url,
           enabled: w.active,
           iconType: w.name.toLowerCase().includes('what') ? 'whatsapp' : 'telegram',
         }))
-      : isUserAuthenticated && initialDbWebhooks
-      ? []
-      : INITIAL_WEBHOOKS;
+      : [];
 
   // Reactive state synced across Dashboard, Inbox, and Calendar views
   const [emails, setEmails] = useState<EmailItem[]>(formattedEmails);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(formattedTimeBlocks);
+
+  // Auto-sync effect
+  const syncWorkspaceData = useCallback(async () => {
+    if (!isUserAuthenticated) return;
+    setIsSyncing(true);
+    try {
+      await Promise.all([
+        fetch('/api/gmail/sync', { method: 'POST' }),
+        fetch('/api/calendar/sync', { method: 'POST' })
+      ]);
+      // Note: A full page refresh or re-fetch could happen here, 
+      // but for now the APIs return the data count and next page load will have it.
+      // Or we can manually trigger a router.refresh() 
+    } catch (error) {
+      console.error('Failed to auto-sync:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isUserAuthenticated]);
+
+  useEffect(() => {
+    // Fire sync only once on mount if authenticated
+    syncWorkspaceData();
+  }, [syncWorkspaceData]);
 
   const renderActiveView = () => {
     switch (activeTab) {

@@ -13,11 +13,16 @@ export default async function OrdoWorkspacePage() {
   let initialDbEmails: any[] = [];
   let initialDbWebhooks: any[] = [];
 
+  let workspaceId = '';
+
   // 2. If user is authenticated, ensure their workspace/seed data exist in DB and query real data
   if (session?.user?.id) {
     try {
       // Ensure user has their Workspace and default data rows if their database was empty
-      await ensureUserWorkspace(session.user.id);
+      const ensureRes = await ensureUserWorkspace(session.user.id);
+      if (ensureRes.success && ensureRes.workspaceId) {
+        workspaceId = ensureRes.workspaceId;
+      }
 
       // Query all live database tables from PostgreSQL via Prisma
       [initialDbTimeBlocks, initialDbTasks, initialDbEmails, initialDbWebhooks] =
@@ -68,6 +73,7 @@ export default async function OrdoWorkspacePage() {
       initialDbTasks={initialDbTasks}
       initialDbEmails={initialDbEmails}
       initialDbWebhooks={initialDbWebhooks}
+      workspaceId={workspaceId}
     />
   );
 }

@@ -2,6 +2,11 @@
 
 import { prisma } from '@/src/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { signIn } from '@/auth';
+
+export async function signInWithGoogleAction(callbackUrl: string = '/') {
+  await signIn('google', { redirectTo: callbackUrl });
+}
 
 export interface SignupResponse {
   success: boolean;

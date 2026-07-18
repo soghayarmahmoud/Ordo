@@ -40,155 +40,16 @@ export async function ensureUserWorkspace(userId: string) {
     const workspaceId = membership!.workspaceId;
 
     // 2. Check if user has EmailItem records in database
-    const emailCount = await prisma.emailItem.count({ where: { userId } });
-    if (emailCount === 0) {
-      await prisma.emailItem.createMany({
-        data: [
-          {
-            userId,
-            sender: 'Sarah Jenkins (VP Prod)',
-            senderEmail: 's.jenkins@ordo.io',
-            subject: 'Q3 Roadmap Alignment & Key KRAs',
-            body: 'Hey Soghayar, please review the newly attached Q3 roadmap targets before tomorrow afternoon. We need to lock in the 3 core engineering deliverables and align with the design lead on the UI component library refactor.',
-            summaryText: 'Action Required: Review Q3 engineering deliverables and prepare timeline.',
-            summaryVariant: 'action',
-            isScheduled: false,
-          },
-          {
-            userId,
-            sender: 'Engineering System Alerts',
-            senderEmail: 'bot@ordo.io',
-            subject: '[Alert] Production Latency Optimization on US-East-1',
-            body: 'Automated telemetry detected a transient spike in database query latency around 14:00 UTC. Cache hit rates dropped to 89%. Please allocate an engineering time-block to review connection pool sizing and Prisma read replicas.',
-            summaryText: 'Summarized: DB query latency spike detected; inspect connection pool.',
-            summaryVariant: 'summarized',
-            isScheduled: false,
-          },
-          {
-            userId,
-            sender: 'Alex Chen (Lead Architect)',
-            senderEmail: 'a.chen@ordo.io',
-            subject: 'Design System & Tailwind v4 Migration Notes',
-            body: 'The glassmorphic tokens and CSS variables for #0b1326 background have been published to the internal npm registry. Let me know if you need help syncing the sprint board components.',
-            summaryText: 'Summarized: New glassmorphic tokens published to internal registry.',
-            summaryVariant: 'summarized',
-            isScheduled: false,
-          },
-          {
-            userId,
-            sender: 'Google Workspace Sync',
-            senderEmail: 'calendar-notification@google.com',
-            subject: 'Daily Executive Standup & Architecture Sync',
-            body: 'Calendar invite confirmed: Executive Standup and Architecture Sync scheduled for Wednesday at 09:00 AM GMT+03. Click to join Google Meet.',
-            summaryText: 'Summarized: Calendar sync active. Meeting confirmed for Wed 9am.',
-            summaryVariant: 'summarized',
-            isScheduled: true,
-          },
-        ],
-      });
-    }
+    // 2. Mock EmailItems generation removed. True 0-count will be reflected.
 
     // 3. Check if user has TimeBlock records in database
-    const blockCount = await prisma.timeBlock.count({ where: { userId } });
-    if (blockCount === 0) {
-      // Find the scheduled email item if exists to link
-      const scheduledEmail = await prisma.emailItem.findFirst({
-        where: { userId, isScheduled: true },
-      });
-
-      await prisma.timeBlock.createMany({
-        data: [
-          {
-            userId,
-            title: '09:00 Daily Executive Standup',
-            timeSlot: '09:00 AM - 10:00 AM',
-            day: 'Wed',
-            hour: 9,
-            durationHours: 1,
-            variant: 'highlight',
-            emailId: scheduledEmail?.id || null,
-          },
-          {
-            userId,
-            title: '11:00 Design System Architecture Sync',
-            timeSlot: '11:00 AM - 12:30 PM',
-            day: 'Wed',
-            hour: 11,
-            durationHours: 1,
-            variant: 'accent',
-          },
-          {
-            userId,
-            title: '14:00 Deep Focus: Core Auth & Prisma Engine',
-            timeSlot: '2:00 PM - 4:00 PM',
-            day: 'Wed',
-            hour: 14,
-            durationHours: 2,
-            variant: 'default',
-          },
-        ],
-      });
-    }
+    // 3. Mock TimeBlocks generation removed. True 0-count will be reflected.
 
     // 4. Check if workspace has KanbanTask records in database
-    const taskCount = await prisma.kanbanTask.count({ where: { workspaceId } });
-    if (taskCount === 0) {
-      await prisma.kanbanTask.createMany({
-        data: [
-          {
-            workspaceId,
-            code: 'ORD-401',
-            title: 'Implement NextAuth v5 Google Workspace OAuth & Calendar Sync',
-            priority: 'HIGH PRIORITY',
-            columnId: 'todo',
-          },
-          {
-            workspaceId,
-            code: 'ORD-402',
-            title: 'Replace Mock State with Dynamic Prisma Server Components',
-            priority: 'HIGH PRIORITY',
-            columnId: 'in-progress',
-          },
-          {
-            workspaceId,
-            code: 'ORD-403',
-            title: 'Design Glassmorphic Console Layout & Sidebar Navigation',
-            priority: 'MEDIUM',
-            columnId: 'done',
-          },
-          {
-            workspaceId,
-            code: 'ORD-404',
-            title: 'Build Drag and Drop Kanban Board and Calendar Time-slots',
-            priority: 'HIGH PRIORITY',
-            columnId: 'done',
-          },
-        ],
-      });
-    }
+    // 4. Mock KanbanTasks generation removed. True 0-count will be reflected.
 
     // 5. Check if workspace has WebhookEndpoint records in database
-    const webhookCount = await prisma.webhookEndpoint.count({ where: { workspaceId } });
-    if (webhookCount === 0) {
-      await prisma.webhookEndpoint.createMany({
-        data: [
-          {
-            workspaceId,
-            name: 'Telegram Action Bot',
-            url: `https://api.ordo.io/v1/webhooks/tg_${workspaceId.substring(0, 6)}`,
-            active: true,
-            totalThroughput: 142,
-          },
-          {
-            workspaceId,
-            name: 'WhatsApp Executive Alerts',
-            url: `https://api.ordo.io/v1/webhooks/wa_${workspaceId.substring(0, 6)}`,
-            active: true,
-            totalThroughput: 89,
-          },
-        ],
-      });
-    }
+    // 5. Mock Webhooks generation removed. True 0-count will be reflected.
 
     return { success: true, workspaceId };
   } catch (error: any) {
@@ -243,6 +104,80 @@ export async function createTimeBlockAction(data: {
         where: { id: data.emailId },
         data: { isScheduled: true },
       });
+    }
+
+    // Sync to Google Calendar
+    try {
+      const account = await prisma.account.findFirst({
+        where: { userId: data.userId, provider: 'google' }
+      });
+      if (account?.access_token) {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const targetDay = days.indexOf(data.day);
+        const now = new Date();
+        const currentDay = now.getDay();
+        let daysToAdd = targetDay - currentDay;
+        if (daysToAdd < 0) daysToAdd += 7;
+        
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() + daysToAdd);
+        startDate.setHours(data.hour, 0, 0, 0);
+        const endDate = new Date(startDate);
+        endDate.setHours(data.hour + (data.durationHours || 1));
+
+        let accessToken = account.access_token;
+
+        let res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            summary: data.title,
+            start: { dateTime: startDate.toISOString() },
+            end: { dateTime: endDate.toISOString() }
+          })
+        });
+
+        // Basic token refresh logic if expired
+        if (res.status === 401 && account.refresh_token && process.env.GOOGLE_CLIENT_ID) {
+          const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: process.env.GOOGLE_CLIENT_ID,
+              client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+              refresh_token: account.refresh_token,
+              grant_type: 'refresh_token',
+            }),
+          });
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            if (refreshData.access_token) {
+              accessToken = refreshData.access_token;
+              await prisma.account.update({
+                where: { id: account.id },
+                data: { access_token: accessToken },
+              });
+              await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  summary: data.title,
+                  start: { dateTime: startDate.toISOString() },
+                  end: { dateTime: endDate.toISOString() }
+                })
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Google Calendar Sync Error]:', e);
     }
 
     revalidatePath('/');
